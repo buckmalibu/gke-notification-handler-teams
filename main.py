@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Created By  : github.com/echoboomer
+# Created By  : github.com/echoboomer (https://github.com/echoboomer/gke-notification-handler)
+# Adapted to Teams by : github.com/buckmalibu (https://github.com/buckmalibu/gke-notification-handler-teams)
 # =============================================================================
 """
 This script processes GKE cluster upgrade-related notifications as part of a
@@ -17,24 +18,23 @@ import requests
 import sys
 
 
-def process_event(slack_data, webhook_url):
-    byte_length = str(sys.getsizeof(slack_data))
+def process_event(teams_data, webhook_url):
+    byte_length = str(sys.getsizeof(teams_data))
     headers = {
         "Content-Type": "application/json",
         "Content-Length": byte_length,
     }
-    response = requests.post(webhook_url, data=json.dumps(slack_data), headers=headers)
+    response = requests.post(webhook_url, data=json.dumps(teams_data), headers=headers)
     if response.status_code != 200:
         raise Exception(response.status_code, response.text)
 
 
-def notify_slack(event, context):
+def notify_teams(event, context):
     """Background Cloud Function to be triggered by Pub/Sub.
     Args:
          event (dict):  The dictionary with data specific to this type of
          event. The `data` field contains the PubsubMessage message. The
          `attributes` field will contain custom attributes if there are any.
-
          context (google.cloud.functions.Context): The Cloud Functions event
          metadata. The `event_id` field contains the Pub/Sub message ID. The
          `timestamp` field contains the publish time.
@@ -47,141 +47,127 @@ def notify_slack(event, context):
         )
     )
 
-    if "data" in event:
-        # Print the event at the beginning for easier debug.
-        print("Event was passed into function and will be processed.")
-        print(event)
+    try:
+        if "data" in event:
+            # Print the event at the beginning for easier debug.
+            print("Event was passed into function and will be processed.")
+            print(event)
+           # Shared Variables
+            if not "attributes" in event:
+                raise KeyError("no attributes exist")
+            cluster = event["attributes"].get("cluster_name")
+            cluster_resource = json.loads(event["attributes"]["payload"]).get("resourceType")
+            location = event["attributes"].get("cluster_location")
+            message = base64.b64decode(event["data"]).decode("utf-8")
+            project = event["attributes"].get("project_id")
+            webhook_url = os.getenv("TEAMS_WEBHOOK_URL")
 
-        # Shared Variables
-        cluster = event["attributes"]["cluster_name"]
-        cluster_resource = json.loads(event["attributes"]["payload"])["resourceType"]
-        location = event["attributes"]["cluster_location"]
-        message = base64.b64decode(event["data"]).decode("utf-8")
-        project = event["attributes"]["project_id"]
-        webhook_url = os.getenv("SLACK_WEBHOOK_URL")
-
-        # UpgradeEvent
-        if "UpgradeEvent" in event["attributes"]["type_url"]:
-            # UpgradeEvent Variables
-            current_version = json.loads(event["attributes"]["payload"])[
-                "currentVersion"
-            ]
-            start_time = json.loads(event["attributes"]["payload"])[
-                "operationStartTime"
-            ]
-            target_version = json.loads(event["attributes"]["payload"])["targetVersion"]
-            title = f"GKE Cluster Upgrade Notification :zap:"
-            slack_data = {
-                "username": "Platform Notifications",
-                "icon_emoji": ":satellite:",
-                "attachments": [
-                    {
-                        "color": "#9733EE",
-                        "fields": [
-                            {"title": title},
-                            {
-                                "title": "Project",
-                                "value": project,
-                                "short": "false",
+            # UpgradeEvent
+            if "UpgradeEvent" in event["attributes"]["type_url"]:
+                # UpgradeEvent Variables
+                current_version = json.loads(event["attributes"]["payload"]).get("currentVersion")
+                start_time = json.loads(event["attributes"]["payload"]).get("operationStartTime")
+                target_version = json.loads(event["attributes"]["payload"]).get("targetVersion")
+                title = f"GKE Cluster Upgrade Notification (uparrow)"
+                teams_data = {
+                    "@type": "MessageCard",
+                    "@context": "http://schema.org/extensions",
+                    "themeColor": "0076D7",
+                    "summary": title,
+                    "sections": [{
+                        "activityTitle": title,
+                        "activitySubtitle": cluster,
+                        "activityImage": "https://c978d03020deef37dc7e.b-cdn.net/wp-content/uploads/2020/11/Google-Kubernetes-Engine-Logo.png",
+                        "facts": [{
+                            "name": "Project",
+                            "value": project
                             },
                             {
-                                "title": "Cluster",
-                                "value": cluster,
-                                "short": "false",
+                            "name": "Cluster",
+                            "value": cluster
                             },
                             {
-                                "title": "Location",
-                                "value": location,
-                                "short": "false",
+                            "name": "Location",
+                            "value": location
                             },
                             {
-                                "title": "Update Type",
-                                "value": cluster_resource,
-                                "short": "false",
+                            "name": "Update Type",
+                            "value": cluster_resource
                             },
                             {
-                                "title": "Current Version",
-                                "value": current_version,
-                                "short": "false",
+                            "name": "Current Version",
+                            "value": current_version
                             },
                             {
-                                "title": "Target Version",
-                                "value": target_version,
-                                "short": "false",
+                            "name": "Target Version",
+                            "value": target_version
                             },
                             {
-                                "title": "Start Time",
-                                "value": start_time,
-                                "short": "false",
+                            "name": "Start Time",
+                            "value": start_time
                             },
                             {
-                                "title": "Details",
-                                "value": message,
-                                "short": "false",
-                            },
-                        ],
-                    }
-                ],
-            }
-            process_event(slack_data, webhook_url)
-        # UpgradeAvailableEvent
-        elif "UpgradeAvailableEvent" in event["attributes"]["type_url"]:
-            if os.getenv("SEND_UPGRADE_AVAILABLE_NOTIFICATIONS") == "enabled":
-                # UpgradeAvailableEvent Variables
-                available_version = json.loads(event["attributes"]["payload"])[
-                    "version"
-                ]
-                title = f"GKE Cluster Upgrade Available Notification :zap:"
-                slack_data = {
-                    "username": "Platform Notifications",
-                    "icon_emoji": ":satellite:",
-                    "attachments": [
-                        {
-                            "color": "#9733EE",
-                            "fields": [
-                                {"title": title},
-                                {
-                                    "title": "Project",
-                                    "value": project,
-                                    "short": "false",
-                                },
-                                {
-                                    "title": "Cluster",
-                                    "value": cluster,
-                                    "short": "false",
-                                },
-                                {
-                                    "title": "Location",
-                                    "value": location,
-                                    "short": "false",
-                                },
-                                {
-                                    "title": "Eligible Resource",
-                                    "value": cluster_resource,
-                                    "short": "false",
-                                },
-                                {
-                                    "title": "Eligible Version",
-                                    "value": available_version,
-                                    "short": "false",
-                                },
-                                {
-                                    "title": "Details",
-                                    "value": message,
-                                    "short": "false",
-                                },
+                            "name": "Details",
+                            "value": message
+                            }
                             ],
-                        }
-                    ],
+                    }],
                 }
-                process_event(slack_data, webhook_url)
+                process_event(teams_data, webhook_url)
+            # UpgradeAvailableEvent
+            elif "UpgradeAvailableEvent" in event["attributes"]["type_url"]:
+                if os.getenv("SEND_UPGRADE_AVAILABLE_NOTIFICATIONS") == "enabled":
+                    # UpgradeAvailableEvent Variables
+                    available_version = json.loads(event["attributes"]["payload"]).get("version")
+                    title = f"GKE Cluster Upgrade Available Notification (uparrow)"
+                    teams_data = {
+                        "@type": "MessageCard",
+                        "@context": "http://schema.org/extensions",
+                        "themeColor": "0076D7",
+                        "summary": title,
+                        "sections": [{
+                            "activityTitle": title,
+                            "activitySubtitle": cluster,
+                            "activityImage": "https://c978d03020deef37dc7e.b-cdn.net/wp-content/uploads/2020/11/Google-Kubernetes-Engine-Logo.png",
+                            "facts": [{
+                                "name": "Project",
+                                "value": project
+                                },
+                                {
+                                "name": "Cluster",
+                                "value": cluster
+                                },
+                                {
+                                "name": "Location",
+                                "value": location
+                                },
+                                {
+                                "name": "Eligible Resource",
+                                "value": cluster_resource
+                                },
+                                {
+                                "name": "Eligible Version",
+                                "value": available_version
+                                },
+                                {
+                                "name": "Details",
+                                "value": message
+                                }
+                                ],
+                        }],
+                    }
+                    process_event(teams_data, webhook_url)
+                else:
+                    pass
             else:
-                pass
+                print(
+                    "Event was neither UpgradeEvent or UpgradeAvailableEvent, so it will be skipped."
+                )
+                exit(0)
         else:
-            print(
-                "Event was neither UpgradeEvent or UpgradeAvailableEvent, so it will be skipped."
-            )
+            print("No event was passed into the function. Exiting.")
             exit(0)
-    else:
-        print("No event was passed into the function. Exiting.")
-        exit(0)
+    except (KeyError):
+        print("Key Not Found!", KeyError)
+    except Exception as e:
+        print(e)
