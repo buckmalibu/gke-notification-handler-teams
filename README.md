@@ -1,6 +1,7 @@
-# gke-notification-handler
+# gke-notification-handler-teams
 
-A Cloud Function that will parse GKE cluster upgrade notifications (and upgrade available notifications) and send them to Slack.
+(Forked from echoboomer/gke-notification-handler - for Slack)
+A Cloud Function that will parse GKE cluster upgrade notifications (and upgrade available notifications) and send them to Teams.
 
 This is a Python script meant to run in a GCP Cloud Function.
 
@@ -8,14 +9,14 @@ The two files here `main.py` and `requirements.txt` can be compiled into a `zip`
 
 ## Setup
 
-You'll need a Slack application with an incoming webhook token that has permission to post in whichever channel you'd like to receive these notifications.
+You'll need a Teams team with an incoming webhook configured for whichever channel you'd like to receive these notifications.
 
 You're free to tweak this as needed to make it work for your use case.
 
 ## Environment Variables
 
 - `SEND_UPGRADE_AVAILABLE_NOTIFICATIONS` - if set to `enabled`, notifications will be sent regarding `UpgradeAvailableEvent` types. This can be verbose and annoying, so it is configurable.
-- `SLACK_WEBHOOK_URL` - should contain the webhook for sending to Slack.
+- `TEAMS_WEBHOOK_URL` - should contain the webhook for sending to Teams.
 
 ## Dependencies and Examples
 
@@ -64,18 +65,18 @@ Alternatively, you can enable this on a cluster via `gcloud`. More context avail
 ```hcl
 resource "google_cloudfunctions_function" "gke_cluster_upgrade_notifications" {
   name        = "gke-cluster-upgrade-notifications"
-  description = "Sends notifications to Slack for GKE cluster upgrade notifications."
+  description = "Sends notifications to Teams for GKE cluster upgrade notifications."
   runtime     = "python38"
 
   available_memory_mb   = 128
-  entry_point           = "notify_slack"
+  entry_point           = "notify_teams"
   ingress_settings      = "ALLOW_INTERNAL_ONLY"
   source_archive_bucket = "gcs-bucket-name"
   source_archive_object = "main.py.zip"
   timeout               = 30
 
   environment_variables = {
-    SLACK_WEBHOOK_URL = "foo"
+    TEAMS_WEBHOOK_URL = "foo"
   }
 
   event_trigger {
