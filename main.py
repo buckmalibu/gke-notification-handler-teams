@@ -68,7 +68,7 @@ def notify_teams(event, context):
                 current_version = json.loads(event["attributes"]["payload"]).get("currentVersion")
                 start_time = json.loads(event["attributes"]["payload"]).get("operationStartTime")
                 target_version = json.loads(event["attributes"]["payload"]).get("targetVersion")
-                title = f"GKE Cluster Upgrade Notification (uparrow)"
+                title = f"GKE Cluster Upgrade Notification"
                 teams_data = {
                     "@type": "MessageCard",
                     "@context": "http://schema.org/extensions",
@@ -77,7 +77,7 @@ def notify_teams(event, context):
                     "sections": [{
                         "activityTitle": title,
                         "activitySubtitle": cluster,
-                        "activityImage": "https://c978d03020deef37dc7e.b-cdn.net/wp-content/uploads/2020/11/Google-Kubernetes-Engine-Logo.png",
+                        "activityImage": "https://lh3.googleusercontent.com/Aane0AssTO_QZK7MZ3yV89oPg95K5LgJ7Keang1B9Vi1DEMWG4vTUqBewXM3ibwZdEO0IW1NnumogaGOZVwf=w80-h80",
                         "facts": [{
                             "name": "Project",
                             "value": project
@@ -119,7 +119,7 @@ def notify_teams(event, context):
                 if os.getenv("SEND_UPGRADE_AVAILABLE_NOTIFICATIONS") == "enabled":
                     # UpgradeAvailableEvent Variables
                     available_version = json.loads(event["attributes"]["payload"]).get("version")
-                    title = f"GKE Cluster Upgrade Available Notification (uparrow)"
+                    title = f"GKE Cluster Upgrade Available Notification"
                     teams_data = {
                         "@type": "MessageCard",
                         "@context": "http://schema.org/extensions",
@@ -128,7 +128,7 @@ def notify_teams(event, context):
                         "sections": [{
                             "activityTitle": title,
                             "activitySubtitle": cluster,
-                            "activityImage": "https://c978d03020deef37dc7e.b-cdn.net/wp-content/uploads/2020/11/Google-Kubernetes-Engine-Logo.png",
+                            "activityImage": "https://lh3.googleusercontent.com/Aane0AssTO_QZK7MZ3yV89oPg95K5LgJ7Keang1B9Vi1DEMWG4vTUqBewXM3ibwZdEO0IW1NnumogaGOZVwf=w80-h80",
                             "facts": [{
                                 "name": "Project",
                                 "value": project
